@@ -14,7 +14,7 @@ apt-get install -y git make curl software-properties-common
 
 [[ `lsb_release -sr` == "12.04" ]] && apt-get install -y python-software-properties
 
-cd ~ && test -d wflow || git clone $WFLOW_REPO
+cd ~ && test -d wflow || git clone $WFLOW_REPO wflow
 cd wflow
 git fetch origin
 
