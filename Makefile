@@ -1,60 +1,38 @@
-DOKKU_VERSION = master
+WFLOW_VERSION = master
 
-SSHCOMMAND_URL ?= https://raw.github.com/progrium/sshcommand/master/sshcommand
 PLUGINHOOK_URL ?= https://s3.amazonaws.com/progrium-pluginhook/pluginhook_0.1.0_amd64.deb
 STACK_URL ?= https://github.com/progrium/buildstep.git
 PREBUILT_STACK_URL ?= https://github.com/progrium/buildstep/releases/download/2014-03-08/2014-03-08_429d4a9deb.tar.gz
-DOKKU_ROOT ?= /home/dokku
 
-.PHONY: all install copyfiles version plugins dependencies sshcommand pluginhook docker aufs stack count
+WFLOW_NAME ?= wflow
+WFLOW_USER ?= wflow
+WFLOW_ROOT ?= /home/${WFLOW_USER}
+WFLOW_PLUGINS ?= /var/lib/${WFLOW_NAME}/plugins
+WFLOW_SHELL ?= /usr/local/bin/${WFLOW_NAME}
+
+.PHONY: all install copyfiles version plugins dependencies ssh_user pluginhook docker stack count
 
 all:
 	# Type "make install" to install.
 
-install: dependencies stack copyfiles plugins version
+install: dependencies copyfiles install_plugins version
 
-copyfiles: addman
-	cp dokku /usr/local/bin/dokku
-	mkdir -p /var/lib/dokku/plugins
-	cp -r plugins/* /var/lib/dokku/plugins
+dependencies: ssh_user pluginhook docker stack
 
-addman:
-	mkdir -p /usr/local/share/man/man1
-	cp dokku.1 /usr/local/share/man/man1/dokku.1
-	mandb
-
-version:
-	git describe --tags > ${DOKKU_ROOT}/VERSION  2> /dev/null || echo '~${DOKKU_VERSION} ($(shell date -uIminutes))' > ${DOKKU_ROOT}/VERSION
-
-plugins: pluginhook docker
-	dokku plugins-install
-
-dependencies: sshcommand pluginhook docker stack
-
-sshcommand:
-	wget -qO /usr/local/bin/sshcommand ${SSHCOMMAND_URL}
-	chmod +x /usr/local/bin/sshcommand
-	sshcommand create dokku /usr/local/bin/dokku
+ssh_user:
+    useradd --home-dir ${WFLOW_ROOT} --create-home --shell ${WFLOW_SHELL} ${WFLOW_USER}
 
 pluginhook:
 	wget -qO /tmp/pluginhook_0.1.0_amd64.deb ${PLUGINHOOK_URL}
 	dpkg -i /tmp/pluginhook_0.1.0_amd64.deb
 
-docker: aufs
+docker:
+    # http://docs.docker.com/installation/ubuntulinux/
+    curl -sSL https://get.docker.io/ubuntu/ | sudo sh
+    # Warning: The docker group (or the group specified with the -G flag) is root-equivalent; see Docker Daemon Attack Surface details.    
 	egrep -i "^docker" /etc/group || groupadd docker
-	usermod -aG docker dokku
-	curl https://get.docker.io/gpg | apt-key add -
-	echo deb http://get.docker.io/ubuntu docker main > /etc/apt/sources.list.d/docker.list
-	apt-get update
-ifdef DOCKER_VERSION
-	apt-get install -y lxc-docker-${DOCKER_VERSION}
-else
-	apt-get install -y lxc-docker
-endif
+	usermod -aG docker ${WFLOW_USER}
 	sleep 2 # give docker a moment i guess
-
-aufs:
-	lsmod | grep aufs || modprobe aufs || apt-get install -y linux-image-extra-`uname -r`
 
 stack:
 ifdef BUILD_STACK
@@ -63,9 +41,20 @@ else
 	@docker images | grep progrium/buildstep || curl -L ${PREBUILT_STACK_URL} | gunzip -cd | docker import - progrium/buildstep
 endif
 
+copyfiles:
+	cp ${WFLOW_NAME} ${WFLOW_SHELL}
+	mkdir -p ${WFLOW_PLUGINS}
+	cp -r plugins/* ${WFLOW_PLUGINS}
+
+install_plugins: pluginhook docker
+	@pluginhook install
+
+version:
+	git describe --tags > ${WFLOW_ROOT}/VERSION  2> /dev/null || echo '~${WFLOW_VERSION} ($(shell date -uIminutes))' > ${WFLOW_ROOT}/VERSION
+
 count:
 	@echo "Core lines:"
-	@cat dokku bootstrap.sh | wc -l
+	@cat ${WFLOW_NAME} bootstrap.sh | wc -l
 	@echo "Plugin lines:"
 	@find plugins -type f | xargs cat | wc -l
 	@echo "Test lines:"

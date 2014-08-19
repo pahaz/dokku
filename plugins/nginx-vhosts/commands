@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
-set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
+set -eo pipefail; [[ $TRACE ]] && set -x
+
+[[ $WFLOW_NAME ]] || WFLOW_NAME=wflow
+[[ $WFLOW_USER ]] || WFLOW_USER=wflow
+[[ $WFLOW_ROOT ]] || WFLOW_ROOT=/home/${WFLOW_NAME}
+[[ $WFLOW_PLUGINS ]] || WFLOW_PLUGINS=/var/lib/${WFLOW_NAME}/plugins
+[[ $WFLOW_SHELL ]] || WFLOW_SHELL=/usr/local/bin/${WFLOW_NAME}
 
 case "$1" in
   help)

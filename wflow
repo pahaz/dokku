@@ -1,0 +1,294 @@
+#!/usr/bin/env python
+import shlex
+import sys, os, subprocess
+import datetime
+import tempfile
+import logging
+
+__version__ = '0.0.1'
+__home_root = '/home/dokku/'
+__plugins_root = '/var/lib/wflow/plugins'
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    stream=sys.stderr,
+    format='%(asctime)s --> %(message)s',
+    datefmt='%H:%M:%S')
+logger = logging.getLogger('wflow')
+
+file_log_handler = logging.FileHandler('/tmp/exec.log')
+file_log_handler.setLevel(logging.DEBUG)
+file_log_handler.setFormatter(logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    '%m/%d/%Y %H:%M:%S'))
+logger.addHandler(file_log_handler)
+
+
+# utils
+def _parse_git_command(cmd):
+    """
+    Ex: "git-receive-pack '/some_name'" -> (git-receive-pack, some_name)
+    :return: tuple(str(command), str(args))
+    """
+    rez = cmd.split(' ', 1)
+    if len(rez) > 1:
+        return rez[0], rez[1].strip('/\'')
+    else:
+        return rez[0], None
+
+
+def mkdir_if_not_exists(path):
+    path = path.rstrip('/')
+    if not os.path.exists(path):
+        base = os.path.dirname(path)
+        mkdir_if_not_exists(base)
+        os.mkdir(path)
+        return True
+    return False
+
+
+def read_content(path):
+    with open(path) as f:
+        content = f.read().strip()
+    return content
+
+
+def write_content(path, content):
+    with open(path, 'wb') as f:
+        f.write(content.encode('utf-8'))
+
+
+def docker_wait_and_check_exit_code(id):
+    logger.debug('docker white')
+    cmd = 'docker wait {id}'.format(id=id)
+    exit_code = execute(cmd)  # .strip()
+    if exit_code != "0":
+        raise subprocess.CalledProcessError(int(exit_code), cmd)
+
+
+def docker_commit(id, build_image_name):
+    logger.debug('docker commit {0}'.format(build_image_name))
+    execute('docker commit {id} {image}'.format(id=id, image=build_image_name))
+
+
+def pluginhook(hook_name, repo_name, *args):
+    ext_args = ' '.join(args) if args else ''
+    out, exit_code = execute_without_checking(
+        'pluginhook {hook} {repo} {args}'
+        .format(repo=repo_name, hook=hook_name, args=ext_args),
+        env={'PLUGIN_PATH': __plugins_root},
+        shell=True)
+    logger.info("pluginhook {0}".format(hook_name, '\n' + out if out else ''))
+    return out if exit_code == 0 else ''
+
+
+def log_to_file(path, title, content):
+    with open(path, 'a') as f:
+        time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        f.write('\n-at-[{0}]-run-[{1}]-\n'.format(time, title))
+        f.write(content)
+
+
+def puts(s):
+    sys.stderr.write(s + '\n')
+
+# end utils
+
+
+def execute(cmd, shell=False, env=None):
+    # if exit code != 0 raise CalledProcessError
+    logging.debug("execute: {0}".format(cmd))
+    cmd = shlex.split(cmd) if not shell else cmd
+    stdout_and_stderr = subprocess.check_output(
+        cmd,
+        shell=shell,
+        stderr=subprocess.STDOUT,
+        env=env,
+    )
+    stdout_and_stderr = stdout_and_stderr.strip()
+    logging.debug("out: {0}".format(stdout_and_stderr))
+    # if log_to_file:
+    # log_to_file(log_file, cmd, stdout_and_stderr)
+    return stdout_and_stderr
+
+
+def execute_without_checking(cmd, shell=False, env=None):
+    logger.debug('execute checking off')
+    try:
+        out = execute(cmd, shell=shell, env=env)
+        status = 0
+    except subprocess.CalledProcessError as e:
+        logging.warning(
+            " *!* EXECUTE {1} STATUS {0} != 0 * "
+            .format(e.returncode, cmd))
+        out = e.output
+        status = e.returncode
+    return out, status
+
+def do_git_copy(repo_name, revision='master'):
+    tmp_dir_path = tempfile.mkdtemp(prefix='wflow')
+    repo_path = os.path.join(__home_root, repo_name)
+    logger.info(
+        "GIT-COPY: {2} ({1}) <-- {0}"
+        .format(repo_path, revision, tmp_dir_path))
+    execute(
+        "git clone {0} {1}"
+        .format(repo_path, tmp_dir_path))
+    # require git >= 1.8.5
+    execute(
+        "git -C {0} checkout {rev}"
+        .format(tmp_dir_path, rev=revision))
+    execute(
+        "git -C {0} submodule update --init --recursive"
+        .format(tmp_dir_path))
+    return tmp_dir_path
+
+
+def do_cleanup():
+    logger.info('CLEANUP')
+    # delete all non-running container
+    execute(
+        "docker ps -a | "
+        "grep 'Exit' |  "
+        "awk '{print $1}' | "
+        "xargs docker rm &> /dev/null &",
+        shell=True)
+    # delete unused images
+    execute(
+        "docker images | "
+        "grep '<none>' |  "
+        "awk '{print $3}' | "
+        "xargs docker rmi &> /dev/null &",
+        shell=True)
+
+
+def do_build_container(path_to_code, repo_name, build_image_name=None,
+                       cache_dir=None):
+    if not build_image_name:
+        build_image_name = 'wflow/' + repo_name
+    if not cache_dir:
+        cache_dir = os.path.join(__home_root, repo_name, 'cache')
+    mkdir_if_not_exists(cache_dir)
+
+    logger.info(
+        'BUILD: container {1} <-- {0}'
+        .format(path_to_code, build_image_name))
+    id = execute(
+        'tar cC {code} . | '
+        'docker run -i -a stdin progrium/buildstep '
+        '/bin/bash -c "mkdir -p /app && tar -xC /app"'
+        .format(code=path_to_code),
+        shell=True)
+    logger.debug('BUILD: container id = {0}'.format(id))
+    docker_wait_and_check_exit_code(id)
+    docker_commit(id, build_image_name)
+
+    pluginhook('pre-build', repo_name)
+
+    logger.info('BUILD: container run /build/builder')
+    id = execute(
+        'docker run -d -v {0}:/cache {image} '
+        '/build/builder'
+        .format(cache_dir, image=build_image_name),
+        shell=True)
+    docker_wait_and_check_exit_code(id)
+    docker_commit(id, build_image_name)
+
+    pluginhook('post-build', repo_name)
+
+
+def do_update_container(repo_name, build_image_name=None):
+    if not build_image_name:
+        build_image_name = 'wflow/' + repo_name
+
+    logger.info('UP-RELEASE: container {0}'.format(build_image_name))
+    pluginhook('pre-release', repo_name)
+    env_path = os.path.join(__home_root, repo_name, 'ENV')
+    if os.path.exists(env_path) and os.path.isfile(env_path):
+        logger.info(
+            'UP-RELEASE: container update env (ENV={0})'
+            .format(env_path))
+        id = execute(
+            'cat "{path}" | '
+            'docker run -i -a stdin {image} '
+            '/bin/bash -c "mkdir -p /app/.profile.d && '
+            'cat > /app/.profile.d/app-env.sh"'
+            .format(path=env_path, image=build_image_name),
+            shell=True)
+        docker_wait_and_check_exit_code(id)
+        docker_commit(id, build_image_name)
+    pluginhook('post-release', repo_name)
+
+
+def do_run_container(repo_name, build_image_name=None):
+    if not build_image_name:
+        build_image_name = 'wflow/' + repo_name
+
+    logger.info('RUN-CONTAINER: {0}'.format(build_image_name))
+    pluginhook('pre-deploy', repo_name)
+
+    port_path = os.path.join(__home_root, repo_name, 'PORT')
+    url_path = os.path.join(__home_root, repo_name, 'URL')
+    hostname_path = os.path.join(__home_root, 'HOSTNAME')
+
+    # kill the app when running
+    container_path = os.path.join(__home_root, repo_name, 'CONTAINER')
+    if os.path.exists(container_path) and os.path.isfile(container_path):
+        logger.info('RUN-CONTAINER: kill the app when running')
+        oldid = read_content(container_path)
+        execute_without_checking(
+            'docker inspect {oldid} && docker kill {oldid}'
+            .format(oldid=oldid),
+            shell=True)
+
+    # start the app
+    DOCKER_ARGS = pluginhook('docker-args', repo_name)
+
+    logger.info(
+        'RUN-CONTAINER: docker run "/start web" (DOCKER_ARGS={0})'
+        .format(DOCKER_ARGS))
+    id = execute(
+        'docker run -d -p 5000 -e PORT=5000 {DOCKER_ARGS} {image} '
+        '/bin/bash -c "/start web"'
+        .format(DOCKER_ARGS=DOCKER_ARGS, image=build_image_name))
+    write_content(container_path, id)
+
+    port = execute(
+        "docker port {id} 5000 | sed 's/0.0.0.0://'"
+        .format(id=id),
+        shell=True)
+    write_content(port_path, port)
+
+    url = "http://{0}:{1}".format(read_content(hostname_path), port)
+    logger.info('RUN-CONTAINER: deployed url {0}'.format(url))
+    write_content(url_path, url)
+
+    pluginhook('post-deploy', repo_name, port)
+
+
+if __name__ == "__main__":
+    # stdout uses for git protocol
+    puts('\nHi! I and `wflow` v 0.0.1 \n(c) pahaz\n\n'.format(__version__))
+
+    if len(sys.argv) > 2 and sys.argv[1] == '-c':
+        # git ssh detected!
+        command = sys.argv[2]
+        cmd = shlex.split(command)[0]
+        if cmd == 'git-receive-pack':
+            cmd, repo = _parse_git_command(command)
+            execute('git init --bare ' + repo)
+            os.system(cmd + " " + repo)
+            do_cleanup()
+            path = do_git_copy(repo)
+            do_build_container(path, repo)
+            do_update_container(repo)
+            do_run_container(repo)
+        elif cmd == 'git-upload-pack':
+            cmd, repo = _parse_git_command(command)
+            os.system(cmd + " " + repo)
+
+        execute('echo 222!')
+
+    else:
+        # interactive mode
+        pass

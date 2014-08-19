@@ -1,11 +1,20 @@
 #!/usr/bin/env bash
-set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
-APP="$1"; PORT="$2"
-WILDCARD_SSL="$DOKKU_ROOT/tls"
-SSL="$DOKKU_ROOT/$APP/tls"
+set -eo pipefail; [[ $TRACE ]] && set -x
 
-if [[ -f "$DOKKU_ROOT/VHOST" ]]; then
-  VHOST=$(< "$DOKKU_ROOT/VHOST")
+[[ $WFLOW_NAME ]] || WFLOW_NAME=wflow
+[[ $WFLOW_USER ]] || WFLOW_USER=wflow
+[[ $WFLOW_ROOT ]] || WFLOW_ROOT=/home/${WFLOW_NAME}
+[[ $WFLOW_PLUGINS ]] || WFLOW_PLUGINS=/var/lib/${WFLOW_NAME}/plugins
+[[ $WFLOW_SHELL ]] || WFLOW_SHELL=/usr/local/bin/${WFLOW_NAME}
+
+APP="$1"; 
+PORT="$2"
+
+WILDCARD_SSL="$WFLOW_ROOT/tls"
+SSL="$WFLOW_ROOT/$APP/tls"
+
+if [[ -f "$WFLOW_ROOT/VHOST" ]]; then
+  VHOST=$(< "$WFLOW_ROOT/VHOST")
   SUBDOMAIN=${APP/%\.${VHOST}/}
   if [[ "$APP" == *.* ]] && [[ "$SUBDOMAIN" == "$APP" ]]; then
     hostname="${APP/\//-}"
@@ -27,7 +36,7 @@ EOF
 
   # ssl based nginx.conf
   if [[ -n "$SSL_INUSE" ]]; then
-  cat<<EOF > $DOKKU_ROOT/$APP/nginx.conf
+  cat<<EOF > $WFLOW_ROOT/$APP/nginx.conf
 upstream $APP { server 127.0.0.1:$PORT; }
 server {
   listen      [::]:80;
@@ -59,10 +68,10 @@ $SSL_DIRECTIVES
 }
 EOF
 
-  echo "https://$hostname" > "$DOKKU_ROOT/$APP/URL"
+  echo "https://$hostname" > "$WFLOW_ROOT/$APP/URL"
 else
 # default nginx.conf
-  cat<<EOF > $DOKKU_ROOT/$APP/nginx.conf
+  cat<<EOF > $WFLOW_ROOT/$APP/nginx.conf
 upstream $APP { server 127.0.0.1:$PORT; }
 server {
   listen      [::]:80;
@@ -82,10 +91,10 @@ server {
 }
 EOF
 
-  echo "http://$hostname" > "$DOKKU_ROOT/$APP/URL"
+  echo "http://$hostname" > "$WFLOW_ROOT/$APP/URL"
   fi
   echo "-----> Running nginx-pre-reload"
   pluginhook nginx-pre-reload $APP $PORT
   echo "       Reloading nginx"
-  sudo /etc/init.d/nginx reload > /dev/null
+  sudo service nginx reload > /dev/null
 fi

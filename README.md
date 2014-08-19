@@ -1,47 +1,36 @@
-# Dokku
+# `wflow`
 
-Docker powered mini-Heroku. The smallest PaaS implementation you've ever seen.
+`wflow` powered mini-Heroku. The smallest PaaS implementation you've ever seen.
 
-[![Build Status](https://travis-ci.org/progrium/dokku.png?branch=master)](https://travis-ci.org/progrium/dokku)
+[![Build Status](https://travis-ci.org/pahaz/dokku.png?branch=master)](https://travis-ci.org/pahaz/dokku)
 
 ## Requirements
 
-Ubuntu 14.04 x64 or 12.04 x64. Ideally have a domain ready to point to your host. It's designed for and is probably best to use a fresh VM. The bootstrapper will install everything it needs.
-
-**Note: Support for 12.04 will be sunsetting in the near future after dokku & 14.04 have been more thoroughly tested.**
 
 ## Installing
 
 ### Stable
 
-    $ wget -qO- https://raw.github.com/progrium/dokku/v0.2.3/bootstrap.sh | sudo DOKKU_TAG=v0.2.3 bash
-
-**Note**: Users on 12.04 will need to run `apt-get install -y python-software-properties` before bootstrapping stable.
+    $ wget -qO- https://raw.github.com/pahaz/dokku/v0.2.3/bootstrap.sh | sudo DOKKU_TAG=v0.2.3 bash
 
 ### Development
 
-    $ wget -qO- https://raw.github.com/progrium/dokku/master/bootstrap.sh | sudo bash
-
-This may take around 5 minutes. Certainly better than the several hours it takes to bootstrap Cloud Foundry.
-
-You may also wish to take a look at the [advanced installation](http://progrium.viewdocs.io/dokku/advanced-installation) document for additional installation options.
+    $ wget -qO- https://raw.github.com/pahaz/dokku/master/bootstrap.sh | sudo bash
 
 ## Configuring
 
-Set up a domain and a wildcard domain pointing to that host. Make sure `/home/dokku/VHOST` is set to this domain. By default it's set to whatever hostname the host has. This file is only created if the hostname can be resolved by dig (`dig +short $(hostname -f)`). Otherwise you have to create the file manually and set it to your preferred domain. If this file still is not present when you push your app, dokku will publish the app with a port number (i.e. `http://example.com:49154` - note the missing subdomain).
+Set up a domain and a wildcard domain pointing to that host. Make sure `/home/wflow/VHOST` is set to this domain. By default it's set to whatever hostname the host has. This file is only created if the hostname can be resolved by dig (`dig +short $(hostname -f)`). Otherwise you have to create the file manually and set it to your preferred domain. If this file still is not present when you push your app, dokku will publish the app with a port number (i.e. `http://example.com:49154` - note the missing subdomain).
 
-You'll have to add a public key associated with a username by doing something like this from your local machine:
+You'll have to add a public key or password associated with a username `wflow`:
 
-    $ cat ~/.ssh/id_rsa.pub | ssh progriumapp.com "sudo sshcommand acl-add dokku progrium"
+    $ sudo passwd wflow
 
 That's it!
 
 ## Deploy an App
 
-Now you can deploy apps on your Dokku. Let's deploy the [Heroku Node.js sample app](https://github.com/heroku/node-js-sample). All you have to do is add a remote to name the app. It's created on-the-fly.
-
     $ cd node-js-sample
-    $ git remote add progrium dokku@progriumapp.com:node-js-app
+    $ git remote add progrium wflow@progriumapp.com:node-js-app
     $ git push progrium master
     Counting objects: 296, done.
     Delta compression using up to 4 threads.
