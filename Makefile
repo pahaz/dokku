@@ -10,6 +10,8 @@ WFLOW_ROOT ?= /home/${WFLOW_USER}
 WFLOW_PLUGINS ?= /var/lib/${WFLOW_NAME}/plugins
 WFLOW_SHELL ?= /usr/local/bin/${WFLOW_NAME}
 
+PLUGIN_PATH ?= ${WFLOW_PLUGINS}
+
 .PHONY: all install dependencies ssh_user pluginhook docker stack copyfiles install_plugins version count
 
 all:
@@ -20,7 +22,7 @@ install: dependencies copyfiles install_plugins version
 dependencies: ssh_user pluginhook docker stack
 
 ssh_user:
-	@useradd --home-dir ${WFLOW_ROOT} --create-home --shell ${WFLOW_SHELL} ${WFLOW_USER}
+	egrep -i "^${WFLOW_USER}" /etc/passwd || useradd --home-dir ${WFLOW_ROOT} --create-home --shell ${WFLOW_SHELL} ${WFLOW_USER}
 
 pluginhook:
 	wget -qO /tmp/pluginhook_0.1.0_amd64.deb ${PLUGINHOOK_URL}
@@ -29,7 +31,7 @@ pluginhook:
 docker:
 	# http://docs.docker.com/installation/ubuntulinux/
 	curl -sSL https://get.docker.io/ubuntu/ | sudo sh
-	# Warning: The docker group (or the group specified with the -G flag) is root-equivalent; see Docker Daemon Attack Surface details.    
+    # Warning: The docker group (or the group specified with the -G flag) is root-equivalent; see Docker Daemon Attack Surface details.    
 	egrep -i "^docker" /etc/group || groupadd docker
 	usermod -aG docker ${WFLOW_USER}
 	sleep 2 # give docker a moment i guess
