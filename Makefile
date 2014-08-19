@@ -10,7 +10,7 @@ WFLOW_ROOT ?= /home/${WFLOW_USER}
 WFLOW_PLUGINS ?= /var/lib/${WFLOW_NAME}/plugins
 WFLOW_SHELL ?= /usr/local/bin/${WFLOW_NAME}
 
-.PHONY: all install copyfiles version plugins dependencies ssh_user pluginhook docker stack count
+.PHONY: all install dependencies ssh_user pluginhook docker stack copyfiles install_plugins version count
 
 all:
 	# Type "make install" to install.
@@ -20,7 +20,7 @@ install: dependencies copyfiles install_plugins version
 dependencies: ssh_user pluginhook docker stack
 
 ssh_user:
-    useradd --home-dir ${WFLOW_ROOT} --create-home --shell ${WFLOW_SHELL} ${WFLOW_USER}
+    @useradd --home-dir ${WFLOW_ROOT} --create-home --shell ${WFLOW_SHELL} ${WFLOW_USER}
 
 pluginhook:
 	wget -qO /tmp/pluginhook_0.1.0_amd64.deb ${PLUGINHOOK_URL}
