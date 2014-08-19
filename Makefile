@@ -20,16 +20,16 @@ install: dependencies copyfiles install_plugins version
 dependencies: ssh_user pluginhook docker stack
 
 ssh_user:
-    @useradd --home-dir ${WFLOW_ROOT} --create-home --shell ${WFLOW_SHELL} ${WFLOW_USER}
+	@useradd --home-dir ${WFLOW_ROOT} --create-home --shell ${WFLOW_SHELL} ${WFLOW_USER}
 
 pluginhook:
 	wget -qO /tmp/pluginhook_0.1.0_amd64.deb ${PLUGINHOOK_URL}
 	dpkg -i /tmp/pluginhook_0.1.0_amd64.deb
 
 docker:
-    # http://docs.docker.com/installation/ubuntulinux/
-    curl -sSL https://get.docker.io/ubuntu/ | sudo sh
-    # Warning: The docker group (or the group specified with the -G flag) is root-equivalent; see Docker Daemon Attack Surface details.    
+	# http://docs.docker.com/installation/ubuntulinux/
+	curl -sSL https://get.docker.io/ubuntu/ | sudo sh
+	# Warning: The docker group (or the group specified with the -G flag) is root-equivalent; see Docker Daemon Attack Surface details.    
 	egrep -i "^docker" /etc/group || groupadd docker
 	usermod -aG docker ${WFLOW_USER}
 	sleep 2 # give docker a moment i guess
