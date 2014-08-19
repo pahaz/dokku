@@ -64,7 +64,7 @@ sleep 5
 
 # Use docker
 
-sh bootstrap.sh
+make install
 #docker run ubuntu:latest /bin/echo hello world
 #docker attach $id
 #test $(docker wait $id) -eq 0
