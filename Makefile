@@ -31,7 +31,7 @@ pluginhook:
 docker:
 	# http://docs.docker.com/installation/ubuntulinux/
 	curl -sSL https://get.docker.io/ubuntu/ | sudo sh
-    # Warning: The docker group (or the group specified with the -G flag) is root-equivalent; see Docker Daemon Attack Surface details.    
+	# Warning: The docker group (or the group specified with the -G flag) is root-equivalent; see Docker Daemon Attack Surface details.    
 	egrep -i "^docker" /etc/group || groupadd docker
 	usermod -aG docker ${WFLOW_USER}
 	sleep 2 # give docker a moment i guess
@@ -49,6 +49,7 @@ copyfiles:
 	cp -r plugins/* ${WFLOW_PLUGINS}
 
 install_plugins: pluginhook docker
+	@export PLUGIN_PATH=${WFLOW_PLUGINS}
 	@pluginhook install
 
 version:
