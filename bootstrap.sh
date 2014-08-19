@@ -2,6 +2,7 @@
 set -eo pipefail
 export DEBIAN_FRONTEND=noninteractive
 export WFLOW_REPO=${WFLOW_REPO:-"https://github.com/pahaz/dokku.git"}
+export WFLOW_BRANCH=q
 
 if ! which apt-get &>/dev/null
 then
