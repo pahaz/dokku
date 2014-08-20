@@ -13,8 +13,8 @@ PORT="$2"
 WILDCARD_SSL="$WFLOW_ROOT/tls"
 SSL="$WFLOW_ROOT/$APP/tls"
 
-if [[ -f "$WFLOW_ROOT/VHOST" ]]; then
-  VHOST=$(< "$WFLOW_ROOT/VHOST")
+if [[ -f "$WFLOW_ROOT/NGINX-VHOST" ]]; then
+  VHOST=$(< "$WFLOW_ROOT/NGINX-VHOST")
   SUBDOMAIN=${APP/%\.${VHOST}/}
   if [[ "$APP" == *.* ]] && [[ "$SUBDOMAIN" == "$APP" ]]; then
     hostname="${APP/\//-}"
@@ -96,5 +96,5 @@ EOF
   echo "-----> Running nginx-pre-reload"
   pluginhook nginx-pre-reload $APP $PORT
   echo "       Reloading nginx"
-  sudo service nginx reload > /dev/null
+  sudo /etc/init.d/nginx reload > /dev/null
 fi

@@ -64,7 +64,8 @@ sleep 5
 
 # Use docker
 
-make install
+make stack
+
 #docker run ubuntu:latest /bin/echo hello world
 #docker attach $id
 #test $(docker wait $id) -eq 0

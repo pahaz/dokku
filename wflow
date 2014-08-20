@@ -268,7 +268,7 @@ def do_run_container(repo_name, build_image_name=None):
 
 if __name__ == "__main__":
     # stdout uses for git protocol
-    puts('\nHi! I and `wflow` v 0.0.1 \n(c) pahaz\n\n'.format(__version__))
+    puts('\nHi! I am `wflow` v 0.0.1 \n(c) pahaz\n\n'.format(__version__))
 
     if len(sys.argv) > 2 and sys.argv[1] == '-c':
         # git ssh detected!

@@ -39,4 +39,8 @@ EOF
 fi
 sed -i 's/# server_names_hash_bucket_size/server_names_hash_bucket_size/' /etc/nginx/nginx.conf
 
+if [[ ! -f  "$WFLOW_ROOT/NGINX-VHOST" ]]; then
+  [[ $(dig +short $(< "$WFLOW_ROOT/HOSTNAME")) ]] && cp "$WFLOW_ROOT/HOSTNAME" "$WFLOW_ROOT/NGINX-VHOST"
+fi
+
 service nginx start

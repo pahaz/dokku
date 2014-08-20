@@ -45,8 +45,10 @@ endif
 
 copyfiles:
 	cp ${WFLOW_NAME} ${WFLOW_SHELL}
+	chmod +x ${WFLOW_SHELL}
 	mkdir -p ${WFLOW_PLUGINS}
 	cp -r plugins/* ${WFLOW_PLUGINS}
+	chmod +x ${WFLOW_PLUGINS}/*/*
 
 install_plugins: pluginhook docker
 	@pluginhook install
