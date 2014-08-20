@@ -22,7 +22,7 @@ install: dependencies copyfiles install_plugins version
 dependencies: ssh_user pluginhook docker stack
 
 ssh_user:
-	egrep -i "^${WFLOW_USER}" /etc/passwd || useradd --home-dir ${WFLOW_ROOT} --create-home --shell ${WFLOW_SHELL} ${WFLOW_USER}
+	egrep -i "^${WFLOW_USER}" /etc/passwd || useradd --home-dir ${WFLOW_ROOT} --shell ${WFLOW_SHELL} ${WFLOW_USER}
 
 pluginhook:
 	wget -qO /tmp/pluginhook_0.1.0_amd64.deb ${PLUGINHOOK_URL}
@@ -48,7 +48,7 @@ copyfiles:
 	chmod +x ${WFLOW_SHELL}
 	mkdir -p ${WFLOW_PLUGINS}
 	cp -r plugins/* ${WFLOW_PLUGINS}
-	chmod +x ${WFLOW_PLUGINS}/*/*
+	chmod +x ${WFLOW_PLUGINS}
 
 install_plugins: pluginhook docker
 	@pluginhook install
